@@ -7,6 +7,7 @@ use isahc::{HttpClient, Request};
 use serde_json::{Value, json};
 use tracing::{debug, warn};
 
+use crate::error::is_openai_overload;
 use crate::providers::ResolvedAuth;
 use crate::{
     AgentError, ContentBlock, Message, ProviderEvent, Role, StopReason, StreamResponse, TokenUsage,
@@ -470,11 +471,11 @@ pub(crate) async fn parse_sse(
                     .as_str()
                     .unwrap_or("response generation failed")
                     .to_string();
-                let code = error["code"].as_str().unwrap_or("server_error");
-                let status = match code {
-                    "rate_limit_exceeded" => 429,
-                    "server_error" => 500,
-                    _ => 500,
+                let code = error["code"].as_str().unwrap_or_default();
+                let status = if code == "rate_limit_exceeded" || is_openai_overload(data) {
+                    429
+                } else {
+                    500
                 };
                 return Err(AgentError::Api { status, message });
             }
@@ -661,6 +662,25 @@ data: {\"response\":{\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"R
                 AgentError::Api { status, message } => {
                     assert_eq!(status, 429);
                     assert_eq!(message, "Rate limit hit");
+                }
+                other => panic!("expected Api error, got: {other:?}"),
+            }
+        })
+    }
+
+    #[test]
+    fn parse_sse_response_failed_overload() {
+        smol::block_on(async {
+            let sse = "\\
+event: response.failed\n\\
+data: {\"response\":{\"error\":{\"code\":\"server_overloaded\",\"message\":\"Our servers are currently overloaded\"}}}\n\\
+\n";
+
+            let (err, _) = run_sse(sse).await;
+            match err.unwrap_err() {
+                AgentError::Api { status, message } => {
+                    assert_eq!(status, 429);
+                    assert_eq!(message, "Our servers are currently overloaded");
                 }
                 other => panic!("expected Api error, got: {other:?}"),
             }

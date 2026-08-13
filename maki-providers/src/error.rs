@@ -3,6 +3,42 @@
 //! channel closed, user cancel. `user_message()` returns human-readable text for each variant.
 
 use isahc::AsyncReadResponseExt;
+use serde_json::Value;
+
+pub(crate) fn is_openai_overload(body: &str) -> bool {
+    let normalized = body.to_ascii_lowercase();
+    if normalized.contains("our servers are currently overloaded")
+        || normalized.contains("our servers are overloaded")
+    {
+        return true;
+    }
+
+    let Ok(value) = serde_json::from_str::<Value>(body) else {
+        return false;
+    };
+    ["code", "type", "error_type"]
+        .into_iter()
+        .any(|key| has_overload_code(&value, key))
+}
+
+fn has_overload_code(value: &Value, key: &str) -> bool {
+    match value {
+        Value::Object(object) => {
+            object
+                .get(key)
+                .and_then(Value::as_str)
+                .is_some_and(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "server_overloaded" | "overloaded" | "overloaded_error"
+                    )
+                })
+                || object.values().any(|value| has_overload_code(value, key))
+        }
+        Value::Array(values) => values.iter().any(|value| has_overload_code(value, key)),
+        _ => false,
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentError {
@@ -117,6 +153,11 @@ impl AgentError {
             .text()
             .await
             .unwrap_or_else(|_| "unable to read error body".into());
+        let status = if status == 400 && is_openai_overload(&message) {
+            429
+        } else {
+            status
+        };
         Self::Api { status, message }
     }
 
@@ -208,6 +249,40 @@ mod tests {
     #[test]
     fn timeout_is_retryable() {
         assert!(AgentError::Timeout { secs: 30 }.is_retryable());
+    }
+
+    #[test_case("Our servers are currently overloaded. Please try again later." ; "exact_message")]
+    #[test_case(r#"{"error":{"code":"server_overloaded","message":"busy"}}"# ; "structured_code")]
+    #[test_case(r#"{"error":{"type":"overloaded_error","message":"busy"}}"# ; "structured_type")]
+    fn openai_overload_is_detected(message: &str) {
+        assert!(is_openai_overload(message));
+    }
+
+    #[test_case("Invalid API key" ; "invalid_input")]
+    #[test_case("The server said try again later" ; "unrelated_retry_text")]
+    fn unrelated_error_is_not_detected(message: &str) {
+        assert!(!is_openai_overload(message));
+    }
+
+    #[test]
+    fn overloaded_http_400_becomes_rate_limit_and_preserves_body() {
+        smol::block_on(async {
+            let message = "Our servers are currently overloaded. Please try again later.";
+            let response = isahc::Response::builder()
+                .status(400)
+                .body(isahc::AsyncBody::from_bytes_static(message.as_bytes()))
+                .unwrap();
+            match AgentError::from_response(response).await {
+                AgentError::Api {
+                    status,
+                    message: body,
+                } => {
+                    assert_eq!(status, 429);
+                    assert_eq!(body, message);
+                }
+                other => panic!("expected Api error, got: {other:?}"),
+            }
+        });
     }
 
     // llama.cpp: https://github.com/ggml-org/llama.cpp/blob/master/tools/server/server-context.cpp
