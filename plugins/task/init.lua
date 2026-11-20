@@ -138,3 +138,30 @@ maki.api.register_tool({
   header = header,
   restore = restore,
 })
+
+maki.api.register_tool({
+  name = "task_list",
+  description = "List your running background tasks with their IDs and ages. Use to find forgotten tasks or IDs for task_stop. Do not poll for completion.",
+  kind = "read",
+  audiences = { "main" },
+  needs_background = true,
+  schema = { type = "object", properties = {}, additionalProperties = false },
+  handler = function(_, ctx)
+    local tasks, err = maki.task.list_background(ctx)
+    if not tasks then
+      return { llm_output = err, is_error = true }
+    end
+    if #tasks == 0 then
+      return "No running background tasks."
+    end
+
+    local now = os.time()
+    local lines = {}
+    for i, task in ipairs(tasks) do
+      local age = math.max(0, now - task.started_at)
+      local parent = task.parent and (", parent " .. task.parent) or ""
+      lines[i] = string.format("%s [%s, %ds%s] %s", task.id, task.tool, age, parent, task.name)
+    end
+    return table.concat(lines, "\n")
+  end,
+})

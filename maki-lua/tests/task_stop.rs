@@ -253,6 +253,25 @@ fn an_unknown_id_is_an_error_listing_the_running_ids() {
 }
 
 #[test]
+fn task_list_only_shows_running_tasks_owned_by_the_caller() {
+    let (reg, host) = host();
+    let owner = chat();
+    let other = chat();
+    park_and_move(&reg, &host, &owner, FIRST_ID, true);
+    park_and_move(&reg, &host, &other, SECOND_ID, true);
+
+    let list = || done_result(&exec(&reg, "task_list", json!({}), &agent_ctx(&owner))).unwrap();
+    let output = list();
+    assert!(output.contains(FIRST_ID), "{output}");
+    assert!(output.contains(PARK_TOOL), "{output}");
+    assert!(!output.contains(SECOND_ID), "{output}");
+
+    stop(&reg, &owner, FIRST_ID).unwrap();
+    assert_eq!(list(), "No running background tasks.");
+    stop(&reg, &other, SECOND_ID).unwrap();
+}
+
+#[test]
 fn another_chats_id_is_refused_and_its_task_keeps_running() {
     let (reg, host) = host();
     let owner = chat();

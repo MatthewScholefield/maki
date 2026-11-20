@@ -7,7 +7,7 @@ group = "Reference"
 
 # Tools
 
-Maki ships with 23 built-in tools in this reference (22 on by default, 1 opt-in via plugin options). Tools marked **opt-in** are off until you enable them under `plugins` in [Configuration](/docs/configuration/).
+Maki ships with 24 built-in tools in this reference (23 on by default, 1 opt-in via plugin options). Tools marked **opt-in** are off until you enable them under `plugins` in [Configuration](/docs/configuration/).
 
 **Permission** is the [plugin permission](/docs/lua-api/#plugin-permissions) a tool declares. A plugin must hold it to [hook](/docs/hooks/#rules) the tool or to give the tool to a `maki.agent` session. A tool marked none reaches nothing past the conversation. A tool marked undeclared may reach anything, so it costs every permission except `agent` and `input`.
 
@@ -212,6 +212,15 @@ Launch an autonomous subagent to perform tasks independently. Best combined with
 | `prompt` | string | yes | Detailed task prompt for the agent |
 | `subagent_type` | string | no | Subagent type: "research" (read-only, default) or "general" (can modify files) |
 | `thinking` | any | no | Thinking: off\|adaptive\|minimal\|low\|medium\|high\|xhigh\|max\|int budget. Omit to inherit parent; capped at parent. |
+
+### `task_list` {#task_list}
+
+List your running background tasks with their IDs and ages. Use to find forgotten tasks or IDs for task_stop. Do not poll for completion.
+
+**Permission:** undeclared
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
 
 ### `task_stop` {#task_stop}
 

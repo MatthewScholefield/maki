@@ -171,7 +171,21 @@ async fn stop(
     roundtrip(lua, tx, TaskRequest::Stop { id, session }).await
 }
 
-/// Whose tasks `stop`, `send` and `messages` may touch from a tool handler:
+/// Lists running background tasks that the calling agent can stop. This uses
+/// the agent's session, regardless of which tab is focused.
+///
+/// @param ctx LuaCtx The tool handler's ctx.
+/// @return (table|nil, string|nil) Array of `{id, name, tool, started_at, parent?}`
+///   or nil and an error. `started_at` is in Unix seconds. `parent` is the id
+///   of the moved call a nested subagent runs under.
+#[lua_fn]
+fn list_background(lua: &Lua, ctx: UserDataRef<LuaCtx>) -> LuaResult<Pair<Value>> {
+    let asker = try_pair!(asker(&ctx, "maki.task.list_background"));
+    let tasks = BackgroundTasks::of(lua).list_for_model(asker);
+    Ok((Some(lua.to_value(&tasks)?), None))
+}
+
+/// Whose tasks the caller may reach from a tool handler:
 /// the mailbox its agent reads. `None` outside a run.
 fn asker(ctx: &LuaCtx, method: &str) -> Result<Option<MakiId>, String> {
     let agent = ctx.agent().ok_or_else(|| ctx.cap_err(method))?;
@@ -271,7 +285,7 @@ lua_table! {
         tx: Option<UnboundedSender<UiAction>>,
         perms: &PluginPermissions,
     ),
-    DOCS [list(tx), focus(tx), remove(perms, tx), stop(tx), send, messages(perms)]
+    DOCS [list(tx), focus(tx), remove(perms, tx), stop(tx), list_background, send, messages(perms)]
 }
 
 #[cfg(test)]

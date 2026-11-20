@@ -218,6 +218,16 @@ pub(crate) struct ModelStop {
     pub(crate) parent: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub(crate) struct ModelTask {
+    id: String,
+    name: String,
+    tool: Arc<str>,
+    started_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent: Option<String>,
+}
+
 /// What `maki.agent.list()` and `/tasks` show.
 #[derive(Clone)]
 pub(crate) struct BackgroundInfo {
@@ -707,6 +717,27 @@ impl BackgroundTasks {
             .iter()
             .filter(|e| e.session == session)
             .map(|e| e.info.clone())
+            .collect()
+    }
+
+    pub(crate) fn list_for_model(&self, mailbox: Option<MakiId>) -> Vec<ModelTask> {
+        self.locked()
+            .iter()
+            .filter(|e| e.stoppable_by(mailbox))
+            .filter_map(|e| {
+                let tool = match &e.info.kind {
+                    Kind::Call { tool } => Arc::clone(tool),
+                    Kind::Nested { .. } => Arc::from("task"),
+                    Kind::Agent => return None,
+                };
+                Some(ModelTask {
+                    id: e.info.id.clone(),
+                    name: e.info.name.clone(),
+                    tool,
+                    started_at: e.info.started_at,
+                    parent: e.parent().map(str::to_owned),
+                })
+            })
             .collect()
     }
 

@@ -47,6 +47,7 @@ pub(crate) const SECTIONS: &[(&str, &[&str])] = &[
         "Agent & Knowledge",
         &[
             "task",
+            "task_list",
             "task_stop",
             "task_message",
             "todo_write",

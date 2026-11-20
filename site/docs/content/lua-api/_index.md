@@ -6117,6 +6117,25 @@ local stopped, err = maki.task.stop(ctx, input.id)
 
 ---
 
+### `maki.task.list_background()` {#maki-task-list_background}
+
+```lua
+maki.task.list_background({ctx})
+```
+
+Lists running background tasks that the calling agent can stop. This uses
+the agent's session, regardless of which tab is focused.
+
+**Parameters:**
+
+- `{ctx}` (`LuaCtx`) The tool handler's ctx.
+
+**Returns:** (`table|nil`, `string|nil`) Array of `{id, name, tool, started_at, parent?}`
+  or nil and an error. `started_at` is in Unix seconds. `parent` is the id
+  of the moved call a nested subagent runs under.
+
+---
+
 ### `maki.task.send()` {#maki-task-send}
 
 ```lua
