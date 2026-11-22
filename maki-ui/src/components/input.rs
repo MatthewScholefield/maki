@@ -417,7 +417,7 @@ impl InputBox {
         }
     }
 
-    fn is_untouched_recall(&self) -> bool {
+    pub(crate) fn is_untouched_recall(&self) -> bool {
         self.history_index
             .and_then(|i| self.history.get(i))
             .is_some_and(|entry| entry == self.buffer.value())
@@ -724,6 +724,32 @@ impl InputBox {
 
     pub fn scroll_y(&self) -> u16 {
         self.scroll_y
+    }
+
+    pub(crate) fn record_command(&mut self, name: &str, args: &str) {
+        if self.buffer.writers().is_empty() {
+            let entry = if args.is_empty() {
+                name.to_owned()
+            } else {
+                format!("{name} {args}")
+            };
+            self.history.push(entry);
+        }
+    }
+
+    pub(crate) fn hand_history_to(&mut self, to: &mut Self) {
+        if self.history.same_project(&to.history) {
+            self.end_history_recall();
+            to.end_history_recall();
+            mem::swap(&mut self.history, &mut to.history);
+        }
+    }
+
+    fn end_history_recall(&mut self) {
+        if self.is_untouched_recall() {
+            self.buffer.swap_prompt(mem::take(&mut self.draft));
+        }
+        self.history_index = None;
     }
 
     pub fn history(&self) -> &InputHistory {

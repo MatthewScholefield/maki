@@ -1900,6 +1900,7 @@ impl<'t> EventLoop<'t> {
         }
         let left = mem::replace(&mut self.focused, idx);
         if let Ok([from, to]) = self.sessions.get_disjoint_mut([left, idx]) {
+            from.app.input_box.hand_history_to(&mut to.app.input_box);
             from.app.hand_typeahead_to(&mut to.app);
         }
     }

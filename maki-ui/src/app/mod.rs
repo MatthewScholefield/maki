@@ -1688,6 +1688,18 @@ impl App {
         if !self.input_focused() || is_ctrl(&key) {
             return PaletteKey::Passthrough;
         }
+        if self.input_box.is_untouched_recall()
+            && sent_text(self.input_box.buffer.value()).starts_with('/')
+        {
+            let action = match key.code {
+                KeyCode::Up => Some(BuiltinAction::HistoryPrev),
+                KeyCode::Down => Some(BuiltinAction::HistoryNext),
+                _ => None,
+            };
+            if let Some(action) = action {
+                return PaletteKey::Handled(self.run_builtin(action));
+            }
+        }
         if key.code == KeyCode::Enter
             && let Some(name) = self.command_palette.enter_target(&self.input_box.buffer)
         {
@@ -1702,6 +1714,14 @@ impl App {
         match self.command_palette.handle_key(key, &self.input_box.buffer) {
             CommandAction::Consumed => PaletteKey::Swallowed,
             CommandAction::Execute(cmd) => {
+                if caller.is_none()
+                    && self
+                        .command_palette
+                        .find_lua_command(&cmd.name)
+                        .is_some_and(|command| command.history)
+                {
+                    self.input_box.record_command(&cmd.name, &cmd.args);
+                }
                 // Commands act on the session, so the main chat comes to
                 // front. Clear the box first, or the command would stay
                 // behind as the subagent chat's draft.

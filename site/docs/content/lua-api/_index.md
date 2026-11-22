@@ -616,6 +616,8 @@ browsing memory files or toggling settings.
     to the model as a normal message. Only the upper
     bound is checked, so with "+" you still need to
     handle an empty `opts.args` yourself.
+  - `history` (`boolean`) Optional. Keep commands the user enters, including
+    their arguments, in input history (default false).
   - `handler` (`function`) Required. Called when the user runs the command,
     with one opts table: `opts.args` is the raw
     argument string (whitespace kept, may be empty)

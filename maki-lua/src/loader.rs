@@ -1520,6 +1520,7 @@ mod tests {
             plugin: Arc::from("p"),
             reach: PluginReach::new(PluginPermissions::trusted()),
             max_args: 0,
+            history: false,
         }]);
         let snap = reader.load();
         assert_eq!(snap.commands.len(), 1);

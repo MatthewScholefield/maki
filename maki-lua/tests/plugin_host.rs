@@ -4601,6 +4601,7 @@ fn register_command_happy_path() {
         maki.api.register_command({
             name = "/hello",
             description = "says hello",
+            history = true,
             handler = function(opts) end,
         })
         "#,
@@ -4613,6 +4614,7 @@ fn register_command_happy_path() {
     assert_eq!(snap.commands[0].name.as_ref(), "/hello");
     assert_eq!(snap.commands[0].description.as_ref(), "says hello");
     assert_eq!(snap.commands[0].plugin.as_ref(), "cmd_plugin");
+    assert!(snap.commands[0].history);
 }
 
 #[test_case::test_case("" => 0 ; "default_zero")]

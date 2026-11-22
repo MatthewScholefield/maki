@@ -5311,9 +5311,11 @@ const LUA_COMMAND_NOT_SENT: &str = "lua command with args must not reach the mod
 /// The palette hides a lua command once the typed words pass its `max_args`,
 /// and a hidden command falls through to `handle_submit`, so a multi word
 /// `nargs` command must still be routed to its plugin.
-#[test]
-fn typed_lua_command_with_args_executes() {
-    let dir = StateDir::from_path(env::temp_dir());
+#[test_case(false ; "not_saved_by_default")]
+#[test_case(true ; "saved_when_opted_in")]
+fn typed_lua_command_with_args_executes(history: bool) {
+    let tmp = TempDir::new().unwrap();
+    let dir = StateDir::from_path(tmp.path().to_path_buf());
     let mut app = build_app_with_lua(
         dir.clone(),
         Arc::new(test_writer(dir)),
@@ -5323,14 +5325,48 @@ fn typed_lua_command_with_args_executes() {
             plugin: "sessions".into(),
             reach: trusted(),
             max_args: usize::MAX,
+            history,
         }]),
     );
     let probe = probe_events(&mut app);
 
-    let actions = type_and_submit(&mut app, "/rename my title");
+    let command = "/rename my  title";
+    let actions = type_and_submit(&mut app, command);
 
     assert!(actions.is_empty(), "{LUA_COMMAND_NOT_SENT}");
     assert!(probe.try_recv().is_some(), "{LUA_COMMAND_RAN}");
+    assert_eq!(app.input_box.history().get(0), history.then_some(command));
+    if history {
+        app.update(Msg::Key(key(KeyCode::Up)));
+        assert_eq!(app.input_box.buffer.value(), command);
+        app.update(Msg::Key(key(KeyCode::Down)));
+        assert_eq!(app.input_box.buffer.value(), "");
+        app.update(Msg::Key(key(KeyCode::Up)));
+        app.update(Msg::Key(key(KeyCode::Enter)));
+        assert!(probe.try_recv().is_some(), "{LUA_COMMAND_RAN}");
+        assert_eq!(app.input_box.history().len(), 1);
+    }
+}
+
+#[test]
+fn command_history_follows_focus_between_project_sessions() {
+    let (_tmp, dir, writer, mut first) = tempdir_app();
+    let mut next = build_app(dir.clone(), writer);
+    let command = "/loop do the work";
+    for app in [&mut first, &mut next] {
+        app.input_box
+            .set_history(InputHistory::load(&dir, Path::new(TEST_CWD), 100));
+    }
+    first.input_box.record_command("/loop", "do the work");
+
+    first.input_box.hand_history_to(&mut next.input_box);
+    assert!(next.input_box.history_up());
+    assert_eq!(next.input_box.buffer.value(), command);
+
+    next.input_box.hand_history_to(&mut first.input_box);
+    assert!(next.input_box.buffer.value().is_empty());
+    assert!(first.input_box.history_up());
+    assert_eq!(first.input_box.buffer.value(), command);
 }
 
 const RUN_CMDLINE_REJECTED: &str = "a rejected cmdline must not run anything";
@@ -5450,6 +5486,7 @@ fn run_cmdline_needs_what_the_command_reaches(cmdline: &str, needed: &[Permissio
             plugin: RUNNING_PLUGIN.into(),
             reach: only(Permission::Run),
             max_args: 0,
+            history: false,
         }]),
     );
 
@@ -5514,6 +5551,7 @@ fn run_cmdline_forwards_depth_to_lua_command() {
             plugin: "sessions".into(),
             reach: trusted(),
             max_args: 0,
+            history: false,
         }]),
     );
     let probe = probe_events(&mut app);

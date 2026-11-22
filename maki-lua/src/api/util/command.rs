@@ -47,6 +47,7 @@ pub struct LuaCommandInfo {
     /// this plugin's reach and pick the arguments.
     pub reach: PluginReach,
     pub max_args: usize,
+    pub history: bool,
 }
 
 #[derive(Clone, Default)]
@@ -176,6 +177,7 @@ pub(crate) struct CommandEntry {
     pub description: Arc<str>,
     pub reach: PluginReach,
     pub max_args: usize,
+    pub history: bool,
 }
 
 pub(crate) type CommandHandlerMap = HashMap<Arc<str>, HashMap<Arc<str>, CommandEntry>>;
@@ -190,6 +192,7 @@ pub(crate) fn publish_command_snapshot(map: &CommandHandlerMap, writer: &LuaComm
                 plugin: Arc::clone(plugin),
                 reach: entry.reach.clone(),
                 max_args: entry.max_args,
+                history: entry.history,
             })
         })
         .collect();
@@ -958,6 +961,7 @@ mod tests {
             description: Arc::from(desc),
             reach: PluginReach::new(PluginPermissions::trusted()),
             max_args: 0,
+            history: false,
         }
     }
 

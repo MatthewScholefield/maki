@@ -92,6 +92,10 @@ impl InputHistory {
         self.entries.get(index).map(String::as_str)
     }
 
+    pub fn same_project(&self, other: &Self) -> bool {
+        self.file.is_some() && self.file == other.file
+    }
+
     pub fn max_entries(&self) -> usize {
         self.max_entries
     }

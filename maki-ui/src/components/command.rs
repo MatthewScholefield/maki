@@ -1183,6 +1183,7 @@ mod tests {
                 plugin: Arc::from("memory"),
                 reach: PluginReach::new(PluginPermissions::trusted()),
                 max_args: 0,
+                history: false,
             },
             LuaCommandInfo {
                 name: Arc::from("/deploy"),
@@ -1190,6 +1191,7 @@ mod tests {
                 plugin: Arc::from("deploy_plugin"),
                 reach: PluginReach::new(PluginPermissions::trusted()),
                 max_args: 0,
+                history: false,
             },
         ])
     }
@@ -1201,6 +1203,7 @@ mod tests {
             plugin: Arc::from("sessions"),
             reach: PluginReach::new(PluginPermissions::trusted()),
             max_args,
+            history: false,
         }]);
         let mut p = CommandPalette::new(Arc::from([]), empty_snapshot(), reader);
         p.sync(input);
@@ -1289,6 +1292,7 @@ mod tests {
             plugin: Arc::from("models"),
             reach: PluginReach::new(PluginPermissions::trusted()),
             max_args: 0,
+            history: false,
         }]);
         let mut palette = CommandPalette::new(Arc::from([]), empty_snapshot(), reader);
 
@@ -1324,6 +1328,7 @@ mod tests {
             plugin: Arc::from("p"),
             reach: PluginReach::new(PluginPermissions::trusted()),
             max_args: 0,
+            history: false,
         }]);
         let mut p = CommandPalette::new(Arc::from([]), empty_snapshot(), reader);
         p.sync("/");
@@ -1341,6 +1346,7 @@ mod tests {
                 plugin: Arc::from("p"),
                 reach: PluginReach::new(PluginPermissions::trusted()),
                 max_args: 0,
+                history: false,
             },
             LuaCommandInfo {
                 name: Arc::from("/new2"),
@@ -1348,6 +1354,7 @@ mod tests {
                 plugin: Arc::from("p"),
                 reach: PluginReach::new(PluginPermissions::trusted()),
                 max_args: 0,
+                history: false,
             },
         ]);
         p.sync("/");
